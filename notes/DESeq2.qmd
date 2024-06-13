@@ -1,0 +1,148 @@
+---
+title: "Analyzing RNA-seq data with DESeq2"
+format: html
+---
+
+## Introduction to RNA-seq
+RNA sequencing (RNA-seq) is a powerful tool used to capture the dynamic aspects of the transcriptome. It provides insights into the quantitative and qualitative aspects of all RNA transcripts in a sample at a given time. This method allows researchers to detect gene expression, identify novel transcripts, and predict functional elements within the genome.
+
+## Overview of DESeq2
+`DESeq2` is an R package designed for analyzing count-based NGS data like RNA-seq. It uses statistical techniques to determine differential expression across different experimental conditions. Developed by Michael Love, Simon Anders, and Wolfgang Huber, `DESeq2` is part of the Bioconductor project, which provides tools for the analysis of genomic data.
+
+## Key Concepts and Steps in DESeq2 Analysis
+
+### Input Data Preparation
+- **Count Data:** DESeq2 requires raw count data as input, usually derived from RNA-seq experiments. These counts represent the number of reads mapping to each gene or feature.
+- **Experimental Design:** The user must define the conditions under which each sample was collected, often in the form of a data frame. This includes information on replicates, conditions, and any other relevant experimental details.
+
+### Data Preprocessing
+- **Filtering:** It is common practice to remove genes with very low counts across all samples, as they are unlikely to be statistically informative.
+- **Normalization:** DESeq2 implements a method to normalize counts based on the size factors, which corrects for differences in library sizes across samples.
+
+### Model Fitting
+
+- **Negative Binomial Model:** DESeq2 fits a negative binomial generalized linear model to each gene. The negative binomial distribution is used because it can model the overdispersion (variance larger than the mean) typically observed in count data.
+
+- **Design Formula:** The model includes a design formula that specifies how the counts for each gene depend on the experimental variables.
+
+### Differential Expression Analysis
+
+- **Wald Test or Likelihood Ratio Test:** DESeq2 uses these tests to determine whether the gene expression changes significantly between conditions.
+- **P-values and Adjustments:** The p-values obtained from the tests are adjusted for multiple testing, often using the Benjamini-Hochberg procedure, to control the false discovery rate (FDR).
+
+### Results Interpretation
+
+- **Log2 Fold Changes:** The results include log2 fold changes which indicate the magnitude and direction of expression changes.
+
+- **Statistical Significance:** Genes are often filtered based on an adjusted p-value threshold (e.g., FDR < 0.05) to determine those significantly differentially expressed.
+
+### Visualization
+
+- **MA-Plots:** Plots that display the log ratios (M values) against the average expression strengths (A values) to visualize differences between conditions.
+- **Heatmaps:** Useful for displaying the expression patterns of genes across samples, often clustering genes with similar expression profiles.
+- **PCA Plots:** Principal component analysis can be used to visualize the overall effect of treatments or conditions on the samples, showing clustering patterns.
+
+### Practical Considerations
+- **Replication:** Adequate replication is crucial for reliable statistical inference. DESeq2 can analyze data with small sample sizes, but more replicates generally provide more robust results.
+
+- **Experimental Design:** Careful planning of the experimental design, including randomization and balancing of batches, is essential for minimizing confounding factors.
+
+- **Bioinformatic Pipelines:** Before using DESeq2, the RNA-seq data must be processed through a pipeline that includes quality control, alignment, and quantification steps.
+
+```{r}
+#| eval: false
+BiocManager::install("EnhancedVolcano")
+BiocManager::install("DESeq2")
+BiocManager::install("airway")
+BiocManager::install("VennDiagram")
+BiocManager::install("org.Hs.eg.db")
+BiocManager::install("AnnotationDbi")
+install.packages("plotly")
+```
+
+
+## Loading Libraries and Data
+
+```{r, load-packages}
+#| message: false
+#| warning: false
+library(airway)
+library(DESeq2)
+```
+
+
+```{r, data}
+# Load the data
+data("airway")
+airway
+```
+
+## Preparing Data
+
+```{r, data-prep}
+# extract count data
+counts_data <- assay(airway) 
+head(counts_data)
+```
+```{r}
+# metadata ~ sample information
+col_data <- as.data.frame(colData(airway))
+head(col_data)
+```
+
+```{r}
+# Preparing data
+col_data <- col_data |>
+  dplyr::select(c(2,3)) |>
+  dplyr::rename(dexamethasone = dex) |>
+  dplyr::rename(cellline = cell)
+```
+
+
+
+
+
+
+## Creating DESeq2 Dataset
+```{r, dds-data}
+# Create a DESeqDataSet object, specifying design formula for the analysis
+dds <- DESeqDataSetFromMatrix(countData = countData,
+                              colData = colData,
+                              design = ~ cell + dex)
+```
+
+
+## Running DESeq2 Analysis
+```{r, dds-analysis}
+# Perform normalization and differential expression analysis
+dds <- DESeq(dds)
+```
+
+1. Estimating Size Factors
+Purpose: Size factors account for differences in library size (sequencing depth) between samples.
+
+2. Estimating Dispersions
+Purpose: Dispersion estimates capture the variability in gene expression not accounted for by the size factors.
+
+3. Gene-wise Dispersion Estimates
+Purpose: Obtain gene-specific dispersion estimates to better model expression variability.
+
+4. Mean-Dispersion Relationship
+Purpose: Examine the relationship between the mean expression and dispersion, which helps in understanding the data and choosing appropriate statistical models.
+
+5. Final Dispersion Estimates
+Purpose: Based on the mean-dispersion relationship, obtain final dispersion estimates.
+
+6. Fitting Model and Testing
+Purpose: Fit the `negative binomial model` to the data and perform hypothesis testing for `differential expression`.
+
+## Why negative binomial model?
+1. The negative binomial (NB) distribution is commonly used in the analysis of `count data`, such as RNA-seq data, due to its ability to model `overdispersion.`
+2. Flexibility for Overdispersion
+3. Biological Variability
+4. Better Fit to Real Data
+5. Statistical Inference
+
+
+
+
